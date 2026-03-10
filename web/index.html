@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="RightJob - Conecta talento con empresas">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="RightJob">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <title>RightJob</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+    import { getFirestore } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+    import { getMessaging } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC60p3_ZPbxu4YgiolYouDnWkNo3xvFQZk",
+      authDomain: "rightjob-42041.firebaseapp.com",
+      projectId: "rightjob-42041",
+      storageBucket: "rightjob-42041.firebasestorage.app",
+      messagingSenderId: "674552295374",
+      appId: "1:674552295374:web:2e874139f30da55800c59f",
+      measurementId: "G-HC18X1L8DQ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+  </script>
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
