@@ -14,37 +14,9 @@ import 'job_detail_screen.dart';
 import 'notifications_screen.dart';
 import 'vacancies_screen.dart';
 import '../widgets/job_card_skeleton.dart';
+import '../services/location_service.dart';
 
-// ---------------------------------------------------------------------------
-// DATOS SEPARADOS POR ROL
-// Cuando conectes Firebase, reemplaza estas listas con llamadas a Firestore.
-// ---------------------------------------------------------------------------
-final List<Map<String, dynamic>> _companyProfiles = [
-  {"name": "Tech Solutions Inc.", "subtitle": "Software • Remoto", "bio": "Buscamos expertos en Flutter para proyectos internacionales de alto impacto.", "skills": ["Flutter", "Dart", "Firebase", "REST APIs", "Git"], "imageUrl": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=800", "salary": "MXN \$90,000 - \$100,000"},
-  {"name": "Creative Agency", "subtitle": "Diseño • Presencial", "bio": "Equipo creativo con proyectos para clientes en Europa y Latinoamérica.", "skills": ["Figma", "Adobe XD", "Illustrator", "Animación", "Branding"], "imageUrl": "https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=800", "salary": "MXN \$50,000 - \$60,000"},
-  {"name": "FinTech Global", "subtitle": "Finanzas • Híbrido", "bio": "Startup fintech en crecimiento. Buscamos desarrolladores apasionados por el mundo financiero.", "skills": ["Flutter", "Node.js", "PostgreSQL", "Seguridad", "APIs"], "imageUrl": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=800", "salary": "MXN \$100,000 - \$110,000"},
-  {"name": "HealthCare Digital", "subtitle": "Salud • Remoto", "bio": "Desarrollamos soluciones digitales para el sector salud. Impacto real en millones de personas.", "skills": ["Flutter", "HL7", "Firebase", "HIPAA", "UX Health"], "imageUrl": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=800", "salary": "MXN \$80,000 - \$90,000"},
-  {"name": "EduTech Academy", "subtitle": "Educación • Remoto", "bio": "Plataforma educativa con más de 500k usuarios. Buscamos talento para escalar nuestro producto.", "skills": ["Flutter", "React", "Python", "Machine Learning", "UX"], "imageUrl": "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=800", "salary": "MXN \$60,000 - \$70,000"},
-  {"name": "LogiTech Corp", "subtitle": "Logística • Presencial", "bio": "Empresa líder en logística digital. Modernizamos la cadena de suministro con tecnología.", "skills": ["Flutter", "Google Maps API", "IoT", "AWS", "Dart"], "imageUrl": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=800", "salary": "MXN \$70,000 - \$80,000"},
-  {"name": "Media Studio MX", "subtitle": "Medios • Híbrido", "bio": "Agencia de contenido digital con clientes en 10 países. Proyectos creativos y desafiantes.", "skills": ["Flutter", "Video Streaming", "Firebase", "UI/UX", "Agile"], "imageUrl": "https://images.unsplash.com/photo-1551817958-d9d86fb29431?q=80&w=800", "salary": "MXN \$50,000 - \$60,000"},
-  {"name": "GreenEnergy Tech", "subtitle": "Energía • Remoto", "bio": "Tecnología al servicio del medio ambiente. Desarrollamos apps para monitoreo de energía solar.", "skills": ["Flutter", "IoT", "Python", "Data Analytics", "REST APIs"], "imageUrl": "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?q=80&w=800", "salary": "MXN \$80,000 - \$90,000"},
-  {"name": "RetailX", "subtitle": "E-commerce • Híbrido", "bio": "Plataforma de comercio electrónico en expansión. Buscamos desarrolladores mobile senior.", "skills": ["Flutter", "Stripe", "Firebase", "Redux", "CI/CD"], "imageUrl": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=800", "salary": "MXN \$90,000 - \$100,000"},
-  {"name": "TravelApp Co.", "subtitle": "Turismo • Remoto", "bio": "App de viajes con más de 1M de descargas. Únete a nuestro equipo distribuido globalmente.", "skills": ["Flutter", "Google Maps", "Firebase", "Animaciones", "Dart"], "imageUrl": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=800", "salary": "MXN \$110,000 - \$120,000"},
-];
-
-final List<Map<String, dynamic>> _candidateProfiles = [
-  {"name": "Ana García", "education": "Licenciatura+ · Ingeniería en Sistemas / Software", "subtitle": "Flutter Developer • Remoto", "experience": "3 a 5 años", "availability": "Remoto", "bio": "Desarrolladora mobile especializada en Flutter y Firebase. Busco equipo innovador.", "skills": ["Flutter", "Firebase", "Dart", "UX Mobile", "Agile"], "imageUrl": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=800", "salary": "MXN \$60,000 - \$70,000"},
-  {"name": "Carlos Méndez", "education": "Licenciatura+ · Diseño Gráfico / Digital", "subtitle": "UI/UX Designer • Remoto", "experience": "0 a 2 años", "availability": "Remoto", "bio": "Diseñador con enfoque en apps móviles. Portfolio con más de 20 proyectos publicados.", "skills": ["Figma", "Flutter", "Prototipado", "Design Systems", "CSS"], "imageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=800", "salary": "MXN \$50,000 - \$60,000"},
-  {"name": "Sofía Ramírez", "education": "Licenciatura+ · Ciencias de Datos", "subtitle": "Backend Developer • Presencial", "experience": "5 o más años", "availability": "Presencial", "bio": "Especialista en APIs REST y microservicios. Apasionada por arquitecturas escalables.", "skills": ["Node.js", "Python", "Docker", "AWS", "PostgreSQL"], "imageUrl": "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=800", "salary": "MXN \$90,000 - \$100,000"},
-  {"name": "Diego Torres", "education": "Licenciatura+ · Ingeniería en Sistemas / Software", "subtitle": "Full Stack Developer • Híbrido", "experience": "3 a 5 años", "availability": "Híbrido", "bio": "Desarrollador full stack con experiencia en startups. Me adapto rápido a nuevos retos.", "skills": ["Flutter", "React", "Node.js", "Firebase", "Git"], "imageUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=800", "salary": "MXN \$80,000 - \$90,000"},
-  {"name": "Valentina Cruz", "education": "Licenciatura+ · Administración de Empresas", "subtitle": "Product Manager • Remoto", "experience": "5 o más años", "availability": "Remoto", "bio": "PM con experiencia en productos digitales de alto tráfico. Metodologías ágiles y enfoque en datos.", "skills": ["Scrum", "Jira", "Analytics", "UX Research", "Roadmapping"], "imageUrl": "https://images.unsplash.com/photo-1598550874175-4d0ef436c909?q=80&w=800", "salary": "MXN \$100,000 - \$110,000"},
-  {"name": "Andrés Morales", "education": "Licenciatura+ · Ingeniería en Sistemas / Software", "subtitle": "DevOps Engineer • Híbrido", "experience": "3 a 5 años", "availability": "Híbrido", "bio": "Especialista en CI/CD y automatización. Apasionado por la cultura DevOps y la nube.", "skills": ["AWS", "Docker", "Kubernetes", "Jenkins", "Terraform"], "imageUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=800", "salary": "MXN \$80,000 - \$90,000"},
-  {"name": "Lucía Fernández", "education": "Licenciatura+ · Inteligencia Artificial", "subtitle": "Data Scientist • Remoto", "experience": "3 a 5 años", "availability": "Remoto", "bio": "Científica de datos con enfoque en machine learning aplicado a negocios reales.", "skills": ["Python", "TensorFlow", "SQL", "Power BI", "Pandas"], "imageUrl": "https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?q=80&w=800", "salary": "MXN \$90,000 - \$100,000"},
-  {"name": "Miguel Ángel Ruiz", "education": "Licenciatura+ · Ingeniería Electrónica", "subtitle": "iOS Developer • Presencial", "experience": "5 o más años", "availability": "Presencial", "bio": "Desarrollador iOS nativo con apps publicadas en el App Store con más de 100k descargas.", "skills": ["Swift", "Flutter", "Xcode", "Core Data", "ARKit"], "imageUrl": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=800", "salary": "MXN \$100,000 - \$110,000"},
-  {"name": "Isabella Vargas", "education": "Licenciatura+ · Ingeniería en Sistemas / Software", "subtitle": "QA Engineer • Híbrido", "experience": "0 a 2 años", "availability": "Híbrido", "bio": "Especialista en testing automatizado. Garantizo calidad en cada release del producto.", "skills": ["Selenium", "Flutter Test", "Postman", "Jest", "CI/CD"], "imageUrl": "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?q=80&w=800", "salary": "MXN \$60,000 - \$70,000"},
-  {"name": "Roberto Castillo", "education": "Licenciatura+ · Ingeniería en Sistemas / Software", "subtitle": "Android Developer • Presencial", "experience": "3 a 5 años", "availability": "Presencial", "bio": "Desarrollador Android con transición a Flutter. Experiencia en apps con millones de usuarios.", "skills": ["Flutter", "Kotlin", "Android SDK", "Firebase", "MVVM"], "imageUrl": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=800", "salary": "MXN \$80,000 - \$90,000"},
-];
-// ---------------------------------------------------------------------------
+// Feed 100% conectado a Firestore — sin perfiles de prueba
 
 class FeedScreen extends StatefulWidget {
   final String name;
@@ -96,6 +68,7 @@ class _FeedScreenState extends State<FeedScreen> {
     'MXN \$180,000 - \$190,000', 'MXN \$190,000 - \$200,000', 'MXN \$200,000+',
   ];
   bool _isLoading = true;
+  bool _locationRequested = false;
   double _swipeProgress = 0.0;
   int _frontCardIndex = 0;
   bool _cardsFinished = false;
@@ -108,11 +81,9 @@ class _FeedScreenState extends State<FeedScreen> {
     debugPrint('🎯 FeedScreen initState: userRole=$userRole (param=${widget.role}, storage=${StorageService.getUserRole()})');
     _profileImageUrl = StorageService.getImageUrl();
 
-    allProfiles = userRole == 'candidate' ? _companyProfiles : _candidateProfiles;
-    filteredProfiles = List.from(allProfiles);
-
     _loadMatches();
     _loadNotifications();
+    _requestLocationThenLoad();
   }
 
   void _loadNotifications() {
@@ -123,6 +94,74 @@ class _FeedScreenState extends State<FeedScreen> {
         _notifications = list.map((m) => AppNotification.fromMap(m)).toList();
         _unreadCount = _notifications.where((n) => !n.isRead).length;
       });
+    });
+  }
+
+  Future<void> _requestLocationThenLoad() async {
+    // Solo pedir ubicación si el usuario no tiene ciudad guardada
+    final savedCity = StorageService.getCity() ?? '';
+    if (savedCity.isEmpty && !_locationRequested) {
+      setState(() => _locationRequested = true);
+      final result = await LocationService.requestLocation();
+      if (result != null && result.displayCity.isNotEmpty) {
+        StorageService.saveCity(result.displayCity);
+        // Actualizar en Firestore para que otros puedan encontrarlo
+        try {
+          await FirestoreService.updateCity(result.displayCity);
+        } catch (_) {}
+      }
+    }
+    _loadFirestoreProfiles();
+  }
+
+  Future<void> _loadFirestoreProfiles() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    final myCity = StorageService.getCity() ?? '';
+    final targetRole = userRole == 'candidate' ? 'company' : 'candidate';
+    final results = await FirestoreService.searchProfiles(
+      targetRole: targetRole,
+      city: _filterCity,
+      sector: _filterIndustry,
+      availability: _filterAvailability,
+      experience: _filterExperience,
+      minSalary: _filterMinSalary,
+      maxSalary: _filterMaxSalary,
+    );
+
+    // Lógica de geolocalización por ciudad:
+    // - Remotos → aparecen para todos
+    // - Presenciales e híbridos → solo si coincide la ciudad del usuario
+    final filtered = results.where((p) {
+      final avail = (p['availability'] ?? '').toString().toLowerCase();
+      final isRemote = avail.contains('remoto');
+      if (isRemote) return true; // remotos siempre visibles
+      if (myCity.isEmpty) return true; // si el usuario no tiene ciudad, mostrar todos
+      final profileCity = (p['city'] ?? '').toString().toLowerCase();
+      return profileCity.contains(myCity.toLowerCase()) ||
+             myCity.toLowerCase().contains(profileCity);
+    }).map((u) => {
+      'uid': u['uid'],
+      'name': u['name'],
+      'subtitle': '${u['sector'].isNotEmpty ? u['sector'] : u['profession']} • ${u['availability']}',
+      'bio': u['bio'],
+      'salary': u['salary'],
+      'imageUrl': u['imageUrl'],
+      'skills': u['skills'] ?? <String>[],
+      'city': u['city'],
+      'availability': u['availability'],
+      'experience': u['experience'],
+      'phone': u['phone'],
+      'linkedin': u['linkedin'],
+      'website': u['website'],
+      'education': u['education'] ?? '',
+    }).toList();
+
+    if (mounted) setState(() {
+      allProfiles = filtered;
+      filteredProfiles = List.from(filtered);
+      _isLoading = false;
+      _cardsFinished = filtered.isEmpty;
     });
   }
 
@@ -164,14 +203,8 @@ class _FeedScreenState extends State<FeedScreen> {
       'experience': u['experience'],
     }).toList();
 
-    // Combinar con perfiles locales (sin duplicados por nombre)
-    final localProfiles = userRole == 'candidate' ? _companyProfiles : _candidateProfiles;
-    final allCombined = [...localProfiles, ...converted];
-    final seen = <String>{};
-    final unique = allCombined.where((p) => seen.add(p['name'].toString())).toList();
-
     if (mounted) setState(() {
-      allProfiles = unique;
+      allProfiles = converted;
       _applyFilters();
     });
   }
@@ -611,8 +644,8 @@ class _FeedScreenState extends State<FeedScreen> {
       children: [
         Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
-      // Botón flotante visible SOLO para empresas
-      floatingActionButton: isCompany
+      // Botón flotante visible SOLO para empresas en desktop
+      floatingActionButton: isCompany && screenWidth > 500
           ? FloatingActionButton.extended(
               onPressed: () => Navigator.push(
                 context,
@@ -626,25 +659,20 @@ class _FeedScreenState extends State<FeedScreen> {
               ),
             )
           : null,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: cardWidth),
-          child: Column(
-            children: [
-              // HEADER VISUAL
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(28),
-                    bottomRight: Radius.circular(28),
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
+      body: Column(
+        children: [
+          // HEADER VISUAL — ancho completo
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+              ),
+
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
                 child: Column(
                   children: [
                     Row(
@@ -685,14 +713,17 @@ class _FeedScreenState extends State<FeedScreen> {
                           ),
                         ),
                         // Acciones
-                        Row(
+                        Builder(builder: (context) {
+                          final isSmallScreen = MediaQuery.of(context).size.width < 400;
+                          final gap = isSmallScreen ? 4.0 : 8.0;
+                          return Row(
                           children: [
                             if (isCompany) ...[
                               _headerBtn(Icons.work_outline, () {
                                 Navigator.push(context, MaterialPageRoute(
                                   builder: (_) => const VacanciesScreen()));
                               }),
-                              const SizedBox(width: 8),
+                              SizedBox(width: gap),
                             ],
                             Stack(
                               children: [
@@ -713,7 +744,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                   ),
                               ],
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: gap),
                             Stack(
                               children: [
                                 _headerBtn(Icons.chat_bubble_outline, () {
@@ -755,7 +786,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                   ),
                               ],
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: gap),
                             Stack(
                               children: [
                                 _headerBtn(Icons.notifications, () {
@@ -786,7 +817,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                   ),
                               ],
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: gap),
                             _headerBtn(Icons.more_vert, () async {
                               await Navigator.push(context,
                                 MaterialPageRoute(builder: (_) => SettingsScreen(
@@ -794,104 +825,146 @@ class _FeedScreenState extends State<FeedScreen> {
                               if (mounted) setState(() => _profileImageUrl = StorageService.getImageUrl());
                             }),
                           ],
-                        ),
+                        );
+                        }),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Título del feed
+                    // Título del feed + botón publicar en móvil
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.explore, color: Colors.white, size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          feedTitle,
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13, fontWeight: FontWeight.w500),
+                        Row(
+                          children: [
+                            const Icon(Icons.explore, color: Colors.white, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              feedTitle,
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ],
                         ),
+                        // Botón publicar oferta en móvil (solo empresa)
+                        if (isCompany && screenWidth <= 500)
+                          GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => PostJobScreen()),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.add, color: Color(0xFF1565C0), size: 16),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    "Publicar",
+                                    style: TextStyle(color: Color(0xFF1565C0), fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ],
                 ),
               ),
-              Expanded(
-                child: Center(
-                  child: _isLoading
-                      ? JobCardSkeleton()
-                      : filteredProfiles.isEmpty
-                          ? _buildNoResultsFeed()
-                          : _cardsFinished
-                              ? _buildEmptyFeed()
-                              : CardSwiper(
-                    controller: controller,
-                    cardsCount: filteredProfiles.length,
-                    isLoop: false,
-                    key: ValueKey(_filterKey),
-                    onSwipe: (prev, curr, dir) {
-                      if (dir == CardSwiperDirection.right) {
-                        _handleMatch(filteredProfiles[prev]);
-                      }
-                      setState(() {
-                        _swipeProgress = 0.0;
-                        _frontCardIndex = curr ?? _frontCardIndex + 1;
-                        if (curr == null) _cardsFinished = true;
-                      });
-                      return true;
-                    },
-                    onSwipeDirectionChange: (horizontal, vertical) {
-                      setState(() {
-                        if (horizontal == CardSwiperDirection.right) {
-                          _swipeProgress = 0.6;
-                        } else if (horizontal == CardSwiperDirection.left) {
-                          _swipeProgress = -0.6;
-                        } else {
-                          _swipeProgress = 0.0;
-                        }
-                      });
-                    },
-                    cardBuilder: (context, index, percentX, percentY) => GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => JobDetailScreen(
-                            profile: filteredProfiles[index],
-                            onApply: () => _handleMatch(filteredProfiles[index]),
+          // FIN HEADER — resto del contenido con maxWidth
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: cardWidth),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: _isLoading
+                            ? JobCardSkeleton()
+                            : filteredProfiles.isEmpty
+                                ? _buildNoResultsFeed()
+                                : _cardsFinished
+                                    ? _buildEmptyFeed()
+                                    : CardSwiper(
+                          controller: controller,
+                          cardsCount: filteredProfiles.length,
+                          isLoop: false,
+                          key: ValueKey(_filterKey),
+                          onSwipe: (prev, curr, dir) {
+                            if (dir == CardSwiperDirection.right) {
+                              _handleMatch(filteredProfiles[prev]);
+                            }
+                            setState(() {
+                              _swipeProgress = 0.0;
+                              _frontCardIndex = curr ?? _frontCardIndex + 1;
+                              if (curr == null) _cardsFinished = true;
+                            });
+                            return true;
+                          },
+                          onSwipeDirectionChange: (horizontal, vertical) {
+                            setState(() {
+                              if (horizontal == CardSwiperDirection.right) {
+                                _swipeProgress = 0.6;
+                              } else if (horizontal == CardSwiperDirection.left) {
+                                _swipeProgress = -0.6;
+                              } else {
+                                _swipeProgress = 0.0;
+                              }
+                            });
+                          },
+                          cardBuilder: (context, index, percentX, percentY) => GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => JobDetailScreen(
+                                  profile: filteredProfiles[index],
+                                  onApply: () => _handleMatch(filteredProfiles[index]),
+                                ),
+                              ),
+                            ),
+                            child: JobCard(
+                              name: filteredProfiles[index]["name"],
+                              subtitle: filteredProfiles[index]["subtitle"],
+                              bio: filteredProfiles[index]["bio"],
+                              imageUrl: filteredProfiles[index]["imageUrl"],
+                              salary: filteredProfiles[index]["salary"],
+                              skills: List<String>.from(filteredProfiles[index]["skills"] ?? []),
+                              swipeProgress: index == _frontCardIndex ? _swipeProgress : 0.0,
+                              cardIndex: index,
+                            ),
                           ),
                         ),
                       ),
-                      child: JobCard(
-                        name: filteredProfiles[index]["name"],
-                        subtitle: filteredProfiles[index]["subtitle"],
-                        bio: filteredProfiles[index]["bio"],
-                        imageUrl: filteredProfiles[index]["imageUrl"],
-                        salary: filteredProfiles[index]["salary"],
-                        skills: List<String>.from(filteredProfiles[index]["skills"] ?? []),
-                        swipeProgress: index == _frontCardIndex ? _swipeProgress : 0.0,
-                        cardIndex: index,
-                      ),
                     ),
-                  ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _circleBtn(Icons.close, Colors.red, () async {
+                          setState(() => _swipeProgress = -0.6);
+                          await Future.delayed(const Duration(milliseconds: 300));
+                          controller.swipe(CardSwiperDirection.left);
+                        }),
+                        const SizedBox(width: 40),
+                        _circleBtn(Icons.handshake, Colors.teal, () async {
+                          setState(() => _swipeProgress = 0.6);
+                          await Future.delayed(const Duration(milliseconds: 300));
+                          controller.swipe(CardSwiperDirection.right);
+                        }),
+                      ],
+                    ),
+                    const SizedBox(height: 40),
+                  ],
                 ),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _circleBtn(Icons.close, Colors.red, () async {
-                    setState(() => _swipeProgress = -0.6);
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    controller.swipe(CardSwiperDirection.left);
-                  }),
-                  const SizedBox(width: 40),
-                  _circleBtn(Icons.handshake, Colors.teal, () async {
-                    setState(() => _swipeProgress = 0.6);
-                    await Future.delayed(const Duration(milliseconds: 300));
-                    controller.swipe(CardSwiperDirection.right);
-                  }),
-                ],
-              ),
-              const SizedBox(height: 40),
-            ],
+            ),
           ),
-        ),
-      ),
+        ], // cierre Column body
+      ), // cierre Scaffold body
     ), // cierre Scaffold
     // BANNER FLOTANTE
     if (_activeBanner != null)
@@ -907,53 +980,88 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Widget _buildNoResultsFeed() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.orange.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
+    final bool hasFilters = _filterCity != null || _filterIndustry != null ||
+        _filterMinSalary != null || _filterAvailability != null || _filterExperience != null;
+    final myCity = StorageService.getCity() ?? '';
+    final bool isLocationEmpty = allProfiles.isEmpty && myCity.isNotEmpty && !hasFilters;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: isLocationEmpty
+                  ? Colors.blue.withValues(alpha: 0.08)
+                  : Colors.orange.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isLocationEmpty ? Icons.location_city_rounded : Icons.search_off_rounded,
+              size: 64,
+              color: isLocationEmpty ? const Color(0xFF1565C0) : Colors.orange,
+            ),
           ),
-          child: const Icon(Icons.search_off, size: 64, color: Colors.orange),
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          "Sin resultados",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          "Ningún perfil coincide con\nlos filtros aplicados.",
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey[500], fontSize: 15, height: 1.5),
-        ),
-        const SizedBox(height: 24),
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue, foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          const SizedBox(height: 24),
+          Text(
+            isLocationEmpty
+                ? "Pronto habrá más perfiles cerca de ti"
+                : hasFilters
+                    ? "Sin resultados"
+                    : "Pronto habrá más perfiles",
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
-          onPressed: () {
-            setState(() {
-              selectedModality = 'Todos';
-              _filterMinSalary = null;
-              _filterMaxSalary = null;
-              _filterIndustry = null;
-              _filterEducation = null;
-              _filterAvailability = null;
-              _filterExperience = null;
-              filteredProfiles = List.from(allProfiles);
-              _frontCardIndex = 0;
-              _cardsFinished = false;
-            });
-          },
-          icon: const Icon(Icons.refresh),
-          label: const Text("Limpiar filtros", style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-      ],
+          const SizedBox(height: 10),
+          Text(
+            isLocationEmpty
+                ? "Aún no hay ${userRole == 'candidate' ? 'empresas' : 'candidatos'} registrados en $myCity.\nLos empleos remotos aparecerán aquí en cuanto se publiquen."
+                : hasFilters
+                    ? "Ningún perfil coincide con los filtros aplicados."
+                    : "Aún no hay ${userRole == 'candidate' ? 'empresas' : 'candidatos'} registrados.\nVuelve pronto, la comunidad está creciendo.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey[500], fontSize: 14, height: 1.6),
+          ),
+          const SizedBox(height: 28),
+          if (hasFilters) ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0), foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            onPressed: () {
+              setState(() {
+                selectedModality = 'Todos';
+                _filterMinSalary = null;
+                _filterMaxSalary = null;
+                _filterIndustry = null;
+                _filterEducation = null;
+                _filterAvailability = null;
+                _filterExperience = null;
+                _filterCity = null;
+                filteredProfiles = List.from(allProfiles);
+                _frontCardIndex = 0;
+                _cardsFinished = false;
+              });
+            },
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text("Limpiar filtros", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          if (!hasFilters) OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1565C0),
+              side: const BorderSide(color: Color(0xFF1565C0)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            onPressed: _loadFirestoreProfiles,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text("Actualizar", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1032,15 +1140,20 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Widget _headerBtn(IconData icon, VoidCallback onTap) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmall = screenWidth < 400;
+    final padding = isSmall ? 6.0 : 8.0;
+    final iconSize = isSmall ? 17.0 : 20.0;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(padding),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.2),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
+        child: Icon(icon, color: Colors.white, size: iconSize),
       ),
     );
   }

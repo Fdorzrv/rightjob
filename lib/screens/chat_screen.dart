@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
+import '../services/image_compress_service.dart';
+import '../services/storage_upload_service.dart';
 import '../models/message_model.dart';
 import '../services/storage_service.dart';
 import '../services/firestore_service.dart';
@@ -153,12 +155,23 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     await input.onChange.first;
     final file = input.files?.first;
     if (file == null) return;
-    final reader = html.FileReader();
-    reader.readAsDataUrl(file);
-    await reader.onLoad.first;
-    final dataUrl = reader.result as String;
+
+    // Comprimir imagen antes de enviar
+    final compressed = await ImageCompressService.compressImageFile(file);
+    if (compressed == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No se pudo procesar la imagen")),
+      );
+      return;
+    }
+
+    // Subir a Firebase Storage y usar URL
+    final chatId = FirestoreService.chatId(widget.chatPartnerName);
+    final imageUrl = await StorageUploadService.uploadChatImage(compressed, chatId);
+
     if (!_hasSentFirstMessage) { _hasSentFirstMessage = true; widget.onMessageSent?.call('image'); }
-    await FirestoreService.sendImage(otherName: widget.chatPartnerName, imageData: dataUrl);
+    // Usar URL de Storage si está disponible, si no usar base64 como fallback
+    await FirestoreService.sendImage(otherName: widget.chatPartnerName, imageData: imageUrl ?? compressed);
     _scrollToBottom();
   }
 
@@ -173,10 +186,83 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     reader.readAsArrayBuffer(file);
     await reader.onLoad.first;
     final bytes = reader.result as Uint8List;
-    final base64Str = base64Encode(bytes);
+
+    // Validar tamaño máximo del PDF (2 MB)
+    if (!ImageCompressService.isPdfSizeValid(bytes)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("El PDF excede el tamaño máximo de 2 MB")),
+      );
+      return;
+    }
+
+    // Subir PDF a Firebase Storage
+    final chatId = FirestoreService.chatId(widget.chatPartnerName);
+    final pdfUrl = await StorageUploadService.uploadChatPdf(bytes, file.name, chatId);
+
     if (!_hasSentFirstMessage) { _hasSentFirstMessage = true; widget.onMessageSent?.call('pdf'); }
-    await FirestoreService.sendPdf(otherName: widget.chatPartnerName, pdfBase64: base64Str, fileName: file.name);
+    if (pdfUrl != null) {
+      // Guardar URL en lugar de base64
+      await FirestoreService.sendPdfUrl(otherName: widget.chatPartnerName, pdfUrl: pdfUrl, fileName: file.name);
+    } else {
+      // Fallback a base64 si falla Storage
+      final base64Str = base64Encode(bytes);
+      await FirestoreService.sendPdf(otherName: widget.chatPartnerName, pdfBase64: base64Str, fileName: file.name);
+    }
     _scrollToBottom();
+  }
+
+  void _confirmCloseProceso() {
+    if (!mounted) return;
+    // Guardar referencias antes del diálogo
+    final partnerName = widget.chatPartnerName;
+    final partnerImage = widget.chatPartnerImage;
+    final partnerSubtitle = widget.chatPartnerSubtitle ?? (_userRole == 'company' ? 'Candidato' : 'Empresa');
+    final nav = Navigator.of(context);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Cerrar proceso", style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text("¿Confirmas que el proceso con este contacto ha finalizado? A continuación podrás valorarlo."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancelar"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx); // cerrar diálogo
+              await FirestoreService.closeProceso(partnerName);
+              if (!mounted) return;
+              setState(() => _procesoCerrado = true);
+              final result = await nav.push(
+                MaterialPageRoute(builder: (_) => RatingScreen(
+                  contactName: partnerName,
+                  contactImageUrl: partnerImage,
+                  contactSubtitle: partnerSubtitle,
+                )),
+              );
+              if (result == true && mounted) {
+                setState(() => _rated = true);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: const Text("¡Valoración enviada! ⭐"),
+                  backgroundColor: Colors.amber[700],
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ));
+              }
+            },
+            child: const Text("Cerrar proceso"),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAttachMenu() {
@@ -428,54 +514,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     phone: widget.chatPartnerPhone,
                     linkedin: widget.chatPartnerLinkedin,
                     website: widget.chatPartnerWebsite,
-                    onSendMessage: () => Navigator.pop(context),
+                    onSendMessage: () {
+                      // Regresar directamente al chat (ya estamos en él)
+                      Navigator.pop(context);
+                    },
                   )),
                 );
                 if (mounted) setState(() {}); // Rebuild al regresar
                 break;
               case 'close_proceso':
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    title: const Text("Cerrar proceso", style: TextStyle(fontWeight: FontWeight.bold)),
-                    content: const Text("¿Confirmas que el proceso con este contacto ha finalizado? A continuación podrás valorarlo."),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () async {
-                          Navigator.pop(context);
-                          await FirestoreService.closeProceso(widget.chatPartnerName);
-                          if (!mounted) return;
-                          setState(() => _procesoCerrado = true);
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => RatingScreen(
-                              contactName: widget.chatPartnerName,
-                              contactImageUrl: widget.chatPartnerImage,
-                              contactSubtitle: widget.chatPartnerSubtitle ?? (_userRole == 'company' ? 'Candidato' : 'Empresa'),
-                            )),
-                          );
-                          if (result == true && mounted) {
-                            setState(() => _rated = true);
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: const Text("¡Valoración enviada! ⭐"),
-                              backgroundColor: Colors.amber[700],
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ));
-                          }
-                        },
-                        child: const Text("Cerrar proceso"),
-                      ),
-                    ],
-                  ),
-                );
+                _confirmCloseProceso();
                 break;
               case 'rate':
                 final result = await Navigator.push(
@@ -516,17 +564,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         ),
                         onPressed: () async {
                           Navigator.pop(context);
+                          // Pausar stream y limpiar UI antes de borrar en Firestore
+                          _messagesSub?.pause();
+                          if (mounted) setState(() => _messages = []);
                           await FirestoreService.clearMessages(widget.chatPartnerName);
+                          // Reanudar stream ya con Firestore limpio
+                          _messagesSub?.resume();
                           if (mounted) {
                             setState(() => _partnerIsTyping = false);
                             ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text("Conversación eliminada"),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              backgroundColor: Colors.red[400],
-                            ),
-                          );
+                              SnackBar(
+                                content: const Text("Conversación eliminada"),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                backgroundColor: Colors.red[400],
+                              ),
+                            );
                           }
                         },
                         child: const Text("Eliminar"),

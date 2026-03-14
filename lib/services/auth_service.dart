@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'storage_service.dart';
@@ -37,7 +38,22 @@ class AuthService {
       'profileComplete': false,
     });
 
+    // Enviar email de verificación
+    await credential.user?.sendEmailVerification();
+
     return credential;
+  }
+
+  // ── VERIFICACIÓN DE CORREO ──────────────────────────────────────────────
+  static bool get isEmailVerified =>
+      _auth.currentUser?.emailVerified ?? false;
+
+  static Future<void> reloadUser() async {
+    await _auth.currentUser?.reload();
+  }
+
+  static Future<void> resendVerificationEmail() async {
+    await _auth.currentUser?.sendEmailVerification();
   }
 
   // ── LOGIN CON EMAIL ─────────────────────────────────────────────────────
@@ -52,29 +68,89 @@ class AuthService {
   }
 
   // ── LOGIN CON GOOGLE ────────────────────────────────────────────────────
-  static Future<UserCredential> loginWithGoogle() async {
+  static Future<void> loginWithGoogle() async {
+    debugPrint('🟡 GoogleSignIn: iniciando signInWithPopup...');
     final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+    googleProvider.addScope('email');
+    googleProvider.addScope('profile');
     googleProvider.setCustomParameters({'prompt': 'select_account'});
-    final credential = await _auth.signInWithPopup(googleProvider);
 
-    // Si es nuevo usuario, crear perfil en Firestore
-    final userDoc = await _db
-        .collection('users')
-        .doc(credential.user!.uid)
-        .get();
+    // El popup puede quedar colgado por COOP — lo corremos sin await
+    // y esperamos que authStateChanges detecte la sesión
+    _auth.signInWithPopup(googleProvider).then((userCredential) async {
+      debugPrint('🟡 GoogleSignIn: popup resuelto user=${userCredential.user?.email}');
+      await _saveGoogleUser(userCredential.user!);
+    }).catchError((e) {
+      debugPrint('🟡 GoogleSignIn: popup error (ignorado): $e');
+    });
 
+    // Esperar hasta 30s a que Firebase detecte la sesión
+    debugPrint('🟡 GoogleSignIn: esperando authState...');
+    final user = await authStateChanges
+        .firstWhere((u) => u != null)
+        .timeout(const Duration(seconds: 30), onTimeout: () => null);
+
+    debugPrint('🟡 GoogleSignIn: user=${user?.email}');
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'cancelled-popup-request',
+        message: 'No se pudo completar el inicio de sesión',
+      );
+    }
+    await _saveGoogleUser(user);
+  }
+
+  static Future<void> _saveGoogleUser(User user) async {
+    final userDoc = await _db.collection('users').doc(user.uid).get();
     if (!userDoc.exists) {
-      await _db.collection('users').doc(credential.user!.uid).set({
-        'uid': credential.user!.uid,
-        'name': credential.user!.displayName ?? 'Usuario',
-        'email': credential.user!.email ?? '',
-        'role': '', // Se asigna en onboarding
+      await _db.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'name': user.displayName ?? 'Usuario',
+        'email': user.email ?? '',
+        'role': '',
         'createdAt': FieldValue.serverTimestamp(),
         'profileComplete': false,
       });
     }
+    await loadProfileToStorage();
+  }
 
-    return credential;
+  // Captura el resultado del redirect de Google (llamar en splash)
+  static Future<void> handleGoogleRedirectResult() async {
+    try {
+      final result = await _auth.getRedirectResult();
+      debugPrint('🔵 Google redirect result: user=${result.user?.email}');
+      if (result.user == null) return;
+
+      // Crear perfil si es nuevo usuario
+      final userDoc = await _db.collection('users').doc(result.user!.uid).get();
+      if (!userDoc.exists) {
+        await _db.collection('users').doc(result.user!.uid).set({
+          'uid': result.user!.uid,
+          'name': result.user!.displayName ?? 'Usuario',
+          'email': result.user!.email ?? '',
+          'role': '',
+          'createdAt': FieldValue.serverTimestamp(),
+          'profileComplete': false,
+        });
+      }
+      await loadProfileToStorage();
+    } catch (e) {
+      debugPrint('🔴 handleGoogleRedirectResult error: $e');
+    }
+  }
+
+  // Espera activa a que Firebase confirme la sesión tras redirect
+  static Future<User?> waitForAuthAfterRedirect({int maxSeconds = 10}) async {
+    for (int i = 0; i < maxSeconds * 2; i++) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      final u = _auth.currentUser;
+      if (u != null) {
+        debugPrint('🔵 waitForAuth: usuario detectado en intento $i → ${u.email}');
+        return u;
+      }
+    }
+    return null;
   }
 
   // ── CERRAR SESIÓN ───────────────────────────────────────────────────────
@@ -110,19 +186,15 @@ class AuthService {
   // Sincroniza los datos de Firestore con StorageService al iniciar sesión
   static Future<void> loadProfileToStorage() async {
     if (currentUser == null) {
-      debugPrint('⚠️ loadProfile: currentUser es null');
       return;
     }
     try {
-      debugPrint('🔄 loadProfile: cargando UID=${currentUser!.uid}');
       final doc = await _db.collection('users').doc(currentUser!.uid).get();
       final data = doc.data();
-      debugPrint('📄 loadProfile: doc existe=${doc.exists}, data=$data');
       if (data == null) return;
 
       final name = data['name'] as String? ?? currentUser!.displayName ?? '';
       final role = data['role'] as String? ?? '';
-      debugPrint('👤 loadProfile: name=$name, role=$role');
 
       final bio = data['bio'] as String?;
       final salary = data['salary'] as String?;
@@ -133,7 +205,6 @@ class AuthService {
 
       // Siempre guardar el rol explícitamente primero
       if (role.isNotEmpty) StorageService.saveUserRole(role);
-      debugPrint('✅ loadProfile: rol guardado en storage = $role');
 
       StorageService.saveFullProfile(
         name: name,

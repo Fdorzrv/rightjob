@@ -3,6 +3,8 @@ import '../services/storage_service.dart';
 import '../services/auth_service.dart';
 import '../helpers/image_picker_helper.dart';
 import 'feed_screen.dart';
+import 'role_selection_screen.dart';
+import '../services/storage_upload_service.dart';
 
 class ProfileFormScreen extends StatefulWidget {
   final String role;
@@ -26,16 +28,27 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   String? _selectedImage;
   String? _selectedEducation;
   String? _selectedCareer;
+  String? _selectedMaestria;
   String? _selectedSector;
   String? _selectedCompanySize;
   double _progress = 0.0;
   bool _submitted = false;
+  
 
   bool get _isCompany => widget.role == 'company';
 
   // ── OPCIONES ──────────────────────────────────────────────────────────────
   final List<String> _educationLevels = [
-    'Secundaria', 'Preparatoria / Bachillerato', 'Carrera Técnica', 'Licenciatura+',
+    'Secundaria', 'Preparatoria / Bachillerato', 'Carrera Técnica', 'Licenciatura', 'Maestría',
+  ];
+
+  final List<String> _maestriaOptions = [
+    'Maestría en Administración de Empresas (MBA)', 'Maestría en Ingeniería de Software',
+    'Maestría en Ciencias de Datos', 'Maestría en Inteligencia Artificial',
+    'Maestría en Finanzas', 'Maestría en Mercadotecnia', 'Maestría en Derecho',
+    'Maestría en Psicología', 'Maestría en Educación', 'Maestría en Salud Pública',
+    'Maestría en Arquitectura', 'Maestría en Diseño', 'Maestría en Comunicación',
+    'Maestría en Recursos Humanos', 'Maestría en Comercio Internacional', 'Otra',
   ];
 
   final List<String> _careerOptions = [
@@ -99,7 +112,8 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     } else {
       if (_profController.text.trim().isNotEmpty) filled++;
       if (_selectedEducation != null &&
-          (_selectedEducation != 'Licenciatura+' || _selectedCareer != null)) filled++;
+          (_selectedEducation != 'Licenciatura' || _selectedCareer != null) &&
+        (_selectedEducation != 'Maestría' || _selectedMaestria != null)) filled++;
     }
 
     setState(() => _progress = filled / total);
@@ -150,7 +164,8 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     final bool salaryValid = _selectedSalary != null;
     final bool photoValid = _selectedImage != null;
     final bool educationValid = _isCompany || (_selectedEducation != null &&
-        (_selectedEducation != 'Licenciatura+' || _selectedCareer != null));
+        (_selectedEducation != 'Licenciatura' || _selectedCareer != null) &&
+        (_selectedEducation != 'Maestría' || _selectedMaestria != null));
 
     if (!formValid || !salaryValid || !photoValid || !educationValid) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -168,7 +183,7 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
 
     String? educationText;
     if (_selectedEducation != null) {
-      educationText = _selectedEducation == 'Licenciatura+' && _selectedCareer != null
+      educationText = _selectedEducation == 'Licenciatura' && _selectedCareer != null
           ? 'Licenciatura+ · $_selectedCareer'
           : _selectedEducation;
     }
@@ -224,6 +239,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
       },
     );
 
+    // Marcar onboarding como visto al completar el registro exitosamente
+    StorageService.setOnboardingDone();
+
     Navigator.pushReplacement(context, MaterialPageRoute(
       builder: (_) => FeedScreen(
         name: _nameController.text.trim(),
@@ -261,7 +279,10 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
                       Row(
                         children: [
                           GestureDetector(
-                            onTap: () => Navigator.pop(context),
+                            onTap: () => Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+                            ),
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
@@ -334,8 +355,17 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
                             isCompany: _isCompany,
                           );
                           if (picked != null) {
+                            // Guardar imagen inmediatamente (base64 o URL)
+                            // Subir a Storage en segundo plano sin bloquear al usuario
                             setState(() => _selectedImage = picked);
                             _updateProgress();
+                            if (picked.startsWith('data:')) {
+                              StorageUploadService.uploadProfileImage(picked).then((url) {
+                                if (url != null && mounted) {
+                                  setState(() => _selectedImage = url);
+                                }
+                              });
+                            }
                           }
                         },
                       ),
@@ -418,12 +448,13 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
                         onChanged: (val) {
                           setState(() {
                             _selectedEducation = val;
-                            if (val != 'Licenciatura+') _selectedCareer = null;
+                            if (val != 'Licenciatura') _selectedCareer = null;
+                            if (val != 'Maestría') _selectedMaestria = null;
                           });
                           _updateProgress();
                         },
                       ),
-                      if (_selectedEducation == 'Licenciatura+') ...[
+                      if (_selectedEducation == 'Licenciatura') ...[
                         const SizedBox(height: 16),
                         _buildDropdown(
                           value: _selectedCareer,
@@ -433,6 +464,20 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
                           errorText: _submitted && _selectedCareer == null ? 'Selecciona tu carrera' : null,
                           onChanged: (val) {
                             setState(() => _selectedCareer = val);
+                            _updateProgress();
+                          },
+                        ),
+                      ],
+                      if (_selectedEducation == 'Maestría') ...[
+                        const SizedBox(height: 16),
+                        _buildDropdown(
+                          value: _selectedMaestria,
+                          hint: 'Selecciona tu maestría',
+                          icon: Icons.school,
+                          items: _maestriaOptions,
+                          errorText: _submitted && _selectedMaestria == null ? 'Selecciona tu maestría' : null,
+                          onChanged: (val) {
+                            setState(() => _selectedMaestria = val);
                             _updateProgress();
                           },
                         ),

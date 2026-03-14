@@ -126,6 +126,26 @@ class FirestoreService {
     });
   }
 
+  // Envía PDF como URL de Storage (no base64)
+  static Future<void> sendPdfUrl({
+    required String otherName,
+    required String pdfUrl,
+    required String fileName,
+  }) async {
+    await _sendRawMessage(otherName: otherName, data: {
+      'text': fileName,
+      'type': 'pdf',
+      'pdfUrl': pdfUrl,
+      'fileName': fileName,
+    });
+  }
+
+  // Obtener chatId entre dos UIDs (para Storage)
+  static String getChatId(String uid1, String uid2) {
+    final sorted = [uid1, uid2]..sort();
+    return '${sorted[0]}_${sorted[1]}';
+  }
+
   static Future<void> _sendRawMessage({
     required String otherName,
     required Map<String, dynamic> data,
@@ -189,8 +209,15 @@ class FirestoreService {
   static Future<void> clearMessages(String otherName) async {
     final cid = chatId(otherName);
     final snap = await _chats.doc(cid).collection('messages').get();
-    for (final doc in snap.docs) {
-      await doc.reference.delete();
+    // Borrar en batches de 500 (límite de Firestore) para evitar parpadeo
+    const batchSize = 500;
+    for (int i = 0; i < snap.docs.length; i += batchSize) {
+      final batch = _db.batch();
+      final chunk = snap.docs.skip(i).take(batchSize);
+      for (final doc in chunk) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
     }
     await updateMatchLastMessage(
       matchName: otherName,
@@ -340,6 +367,11 @@ class FirestoreService {
   }
 
   // Incrementa el contador de swipes recibidos en el perfil del usuario swipeado
+  static Future<void> updateCity(String city) async {
+    if (_uid == null) return;
+    await _db.collection('users').doc(_uid).update({'city': city});
+  }
+
   static Future<void> incrementSwipesReceived(String toName) async {
     try {
       // Busca el uid del usuario por nombre en la colección users

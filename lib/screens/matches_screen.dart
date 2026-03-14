@@ -7,10 +7,10 @@ import '../widgets/shimmer_image.dart';
 import 'notifications_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
-  final List<JobMatch> matches;
+  final List<JobMatch> matches; // mantenido por compatibilidad
   final Function(String name, String imageUrl, String type)? onMessageSent;
 
-  const MatchesScreen({super.key, required this.matches, this.onMessageSent});
+  const MatchesScreen({super.key, this.matches = const [], this.onMessageSent});
 
   @override
   State<MatchesScreen> createState() => _MatchesScreenState();
@@ -21,6 +21,7 @@ class _MatchesScreenState extends State<MatchesScreen>
   late AnimationController _staggerController;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  List<JobMatch> _liveMatches = [];
 
   @override
   void initState() {
@@ -32,6 +33,10 @@ class _MatchesScreenState extends State<MatchesScreen>
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.toLowerCase());
     });
+    // Escuchar Firestore en tiempo real
+    FirestoreService.watchMatches().listen((matches) {
+      if (mounted) setState(() => _liveMatches = matches);
+    });
   }
 
   @override
@@ -41,17 +46,19 @@ class _MatchesScreenState extends State<MatchesScreen>
     super.dispose();
   }
 
-  List<JobMatch> get _newMatches => widget.matches
+  List<JobMatch> get _allMatches => _liveMatches.isNotEmpty ? _liveMatches : widget.matches;
+
+  List<JobMatch> get _newMatches => _allMatches
       .where((m) => m.hasNewMatch)
       .where((m) => m.name.toLowerCase().contains(_searchQuery))
       .toList();
 
-  List<JobMatch> get _conversations => widget.matches
+  List<JobMatch> get _conversations => _allMatches
       .where((m) => !m.hasNewMatch)
       .where((m) => m.name.toLowerCase().contains(_searchQuery))
       .toList();
 
-  int get _totalUnread => widget.matches.fold(0, (sum, m) => sum + m.unreadCount);
+  int get _totalUnread => _allMatches.fold(0, (sum, m) => sum + m.unreadCount);
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +139,7 @@ class _MatchesScreenState extends State<MatchesScreen>
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            widget.matches.isEmpty ? "Sin conexiones" : "${widget.matches.length} conexión${widget.matches.length > 1 ? 'es' : ''}",
+                            _allMatches.isEmpty ? "Sin conexiones" : "${_allMatches.length} conexión${_allMatches.length > 1 ? 'es' : ''}",
                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                           ),
                         ),
@@ -170,7 +177,7 @@ class _MatchesScreenState extends State<MatchesScreen>
             ),
           ),
 
-          if (widget.matches.isEmpty)
+          if (_allMatches.isEmpty)
             SliverFillRemaining(child: _buildEmptyState())
           else
             SliverToBoxAdapter(

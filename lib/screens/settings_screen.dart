@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../helpers/image_picker_helper.dart';
 import 'role_selection_screen.dart';
 import 'login_screen.dart';
+import 'welcome_screen.dart';
 import 'stats_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -201,7 +202,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  MaterialPageRoute(builder: (_) => const WelcomeScreen()),
                   (route) => false,
                 );
               }

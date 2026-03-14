@@ -83,7 +83,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   void _finish() {
-    StorageService.setOnboardingDone();
+    // setOnboardingDone se llama al completar el registro en ProfileFormScreen
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(

@@ -1,10 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/storage_service.dart';
 import '../services/auth_service.dart';
 import 'role_selection_screen.dart';
 import 'feed_screen.dart';
 import 'welcome_screen.dart';
+import 'email_verification_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -73,34 +75,76 @@ class _SplashScreenState extends State<SplashScreen>
     _mainController.forward();
     _progressController.forward();
 
-    Future.delayed(const Duration(milliseconds: 3000), () async {
+    Future.delayed(const Duration(milliseconds: 2800), () async {
+      if (!mounted) return;
+
+      User? user;
+      try {
+        // 1. Procesar redirect de Google
+        await AuthService.handleGoogleRedirectResult()
+            .catchError((_) => null);
+        debugPrint('🔵 Splash: redirect procesado, currentUser=${AuthService.currentUser?.email}');
+
+        // 2. Esperar authState con timeout generoso
+        user = await AuthService.authStateChanges
+            .first
+            .timeout(const Duration(seconds: 10), onTimeout: () => null);
+        debugPrint('🔵 Splash: authState user=${user?.email}');
+
+        // 3. Si authState emitió null pero estamos regresando de redirect,
+        //    esperar activamente hasta 10s a que Firebase confirme la sesión
+        if (user == null) {
+          user = await AuthService.waitForAuthAfterRedirect(maxSeconds: 10);
+          debugPrint('🔵 Splash: waitForAuth user=${user?.email}');
+        }
+      } catch (e) {
+        debugPrint('🔴 Splash error: $e');
+        user = null;
+      }
+
+      // Fallback final
+      user ??= AuthService.currentUser;
+      debugPrint('🔵 Splash: user final=${user?.email}, role=${StorageService.getUserRole()}');
+
       if (!mounted) return;
 
       Widget nextScreen;
-      final user = AuthService.currentUser;
 
       if (user == null) {
-        // Sin sesión → Welcome
+        // Sin sesión → cerrar sesión Firebase por si hay estado residual
+        await AuthService.signOut().catchError((_) => null);
+        StorageService.clearAll();
         nextScreen = const WelcomeScreen();
       } else {
-        // Con sesión → cargar perfil completo de Firestore primero
-        await AuthService.loadProfileToStorage();
-
-        final role = StorageService.getUserRole() ?? '';
-
-        if (role.isEmpty) {
-          nextScreen = const RoleSelectionScreen();
+        // Verificar email antes de continuar (solo para registro con email/password)
+        await AuthService.reloadUser();
+        final isGoogleUser = user.providerData.any((p) => p.providerId == 'google.com');
+        if (!isGoogleUser && !AuthService.isEmailVerified) {
+          nextScreen = const EmailVerificationScreen();
         } else {
-          final name = StorageService.getName()
-              ?? user.displayName
-              ?? 'Usuario';
-          final profession = StorageService.getProfession()
-              ?? (role == 'company' ? 'Empresa' : 'Candidato');
-          nextScreen = FeedScreen(
-            name: name,
-            profession: profession,
-            role: role,
-          );
+          // Con sesión → cargar perfil completo de Firestore
+          await AuthService.loadProfileToStorage();
+          final role = StorageService.getUserRole() ?? '';
+          debugPrint('🔵 Splash: role=$role, isGoogle=$isGoogleUser');
+
+          if (role.isEmpty) {
+            // Usuario autenticado pero sin rol ni perfil en Firestore
+            // → sesión huérfana, cerrar y mandar a Welcome
+            await AuthService.signOut().catchError((_) => null);
+            StorageService.clearAll();
+            nextScreen = const WelcomeScreen();
+          } else {
+            final name = StorageService.getName()
+                ?? user.displayName
+                ?? 'Usuario';
+            final profession = StorageService.getProfession()
+                ?? (role == 'company' ? 'Empresa' : 'Candidato');
+            nextScreen = FeedScreen(
+              name: name,
+              profession: profession,
+              role: role,
+            );
+          }
         }
       }
 

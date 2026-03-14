@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import 'email_verification_screen.dart';
 import 'role_selection_screen.dart';
 import 'feed_screen.dart';
 import '../services/storage_service.dart';
@@ -76,6 +77,17 @@ class _LoginScreenState extends State<LoginScreen>
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+        // Verificar que el correo esté confirmado
+        await AuthService.reloadUser();
+        if (!AuthService.isEmailVerified) {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const EmailVerificationScreen()),
+            );
+          }
+          return;
+        }
         await _navigateAfterAuth();
       } else {
         await AuthService.registerWithEmail(
@@ -85,9 +97,9 @@ class _LoginScreenState extends State<LoginScreen>
           role: '',
         );
         if (mounted) {
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+            MaterialPageRoute(builder: (_) => const EmailVerificationScreen()),
           );
         }
       }
@@ -102,20 +114,21 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _loading = true);
     try {
       await AuthService.loginWithGoogle();
-      final role = await AuthService.getUserRole();
       if (!mounted) return;
-      if (role == null || role.isEmpty) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-        );
+      final role = StorageService.getUserRole() ?? '';
+      if (role.isEmpty) {
+        Navigator.pushReplacement(context,
+            MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
       } else {
         await _navigateAfterAuth();
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'redirect-pending') return;
       _showError(_parseFirebaseError(e.code));
     } catch (e) {
-      _showError("Error al iniciar con Google");
+      debugPrint('🔴 Google catch error: $e');
+      if (mounted) _showError("Error al iniciar con Google");
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -212,6 +225,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bool canGoBack = Navigator.of(context).canPop();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: SingleChildScrollView(
@@ -235,7 +250,18 @@ class _LoginScreenState extends State<LoginScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 40),
+                  SizedBox(height: canGoBack ? 0 : 40),
+                  // Botón atrás si hay pantalla anterior
+                  if (canGoBack)
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: SafeArea(
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                    ),
                   // LOGO
                   Container(
                     width: 80, height: 80,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'login_screen.dart';
+import 'demo_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -137,11 +138,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
           // ── CONTENIDO ──────────────────────────────────────────────────
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                children: [
-                  const Spacer(flex: 2),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
 
                   // LOGO ANIMADO
                   AnimatedBuilder(
@@ -239,7 +241,36 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     ),
                   ),
 
-                  const Spacer(flex: 3),
+                  const SizedBox(height: 16),
+
+                  // BOTÓN DEMO
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DemoScreen()),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                        borderRadius: BorderRadius.circular(30),
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.play_circle_outline_rounded, color: Colors.white.withValues(alpha: 0.9), size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Ver demo interactiva",
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
 
                   // BOTONES CTA
                   AnimatedBuilder(
@@ -316,7 +347,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ),
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

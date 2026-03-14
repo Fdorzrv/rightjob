@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'welcome_screen.dart';
+import 'privacy_policy_screen.dart';
 import 'profile_form_screen.dart';
-import 'profile_form_screen.dart';
+import 'onboarding_screen.dart';
 import '../services/storage_service.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
@@ -38,17 +40,34 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
     setState(() => _selectedRole = role);
     Future.delayed(const Duration(milliseconds: 200), () {
       if (!mounted) return;
-      final Widget next = ProfileFormScreen(role: role);
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 400),
-          pageBuilder: (_, __, ___) => next,
-          transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
-        ),
-      );
       setState(() => _selectedRole = null);
+      _showPrivacyModal(role);
     });
+  }
+
+  void _showPrivacyModal(String role) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PrivacyModal(
+        onAccept: () {
+          Navigator.pop(context); // cerrar modal
+          final bool seenOnboarding = StorageService.hasSeenOnboarding();
+          final Widget next = seenOnboarding
+              ? ProfileFormScreen(role: role)
+              : OnboardingScreen(role: role);
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              transitionDuration: const Duration(milliseconds: 400),
+              pageBuilder: (_, __, ___) => next,
+              transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -80,7 +99,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                     Align(
                       alignment: Alignment.centerLeft,
                       child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () => Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                        ),
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -224,6 +246,161 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── MODAL DE PRIVACIDAD ──────────────────────────────────────────────────────
+class _PrivacyModal extends StatelessWidget {
+  final VoidCallback onAccept;
+  const _PrivacyModal({required this.onAccept});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+          // Handle
+          Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Icono principal
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1565C0).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.shield_rounded, color: Color(0xFF1565C0), size: 36),
+          ),
+          const SizedBox(height: 16),
+
+          // Título
+          const Text(
+            "Tus datos están seguros 🔒",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Antes de continuar, queremos que sepas cómo cuidamos tu información.",
+            style: TextStyle(fontSize: 14, color: Colors.grey[600], height: 1.5),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+
+          // Puntos clave
+          _privacyPoint(
+            icon: Icons.lock_outline_rounded,
+            color: Colors.blue,
+            title: "Información privada",
+            description: "Tu correo y teléfono solo se comparten cuando hay un match mutuo.",
+          ),
+          const SizedBox(height: 14),
+          _privacyPoint(
+            icon: Icons.visibility_off_outlined,
+            color: Colors.purple,
+            title: "Tú decides qué compartir",
+            description: "Solo mostramos lo que tú pones en tu perfil. Nada más.",
+          ),
+          const SizedBox(height: 14),
+          _privacyPoint(
+            icon: Icons.delete_outline_rounded,
+            color: Colors.red,
+            title: "Puedes eliminar tu cuenta",
+            description: "En cualquier momento puedes borrar tu perfil y todos tus datos.",
+          ),
+          const SizedBox(height: 14),
+          _privacyPoint(
+            icon: Icons.storage_rounded,
+            color: Colors.green,
+            title: "Almacenamiento seguro",
+            description: "Usamos Firebase de Google para proteger tu información con cifrado.",
+          ),
+
+          const SizedBox(height: 28),
+
+          // Botón aceptar
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1565C0),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              onPressed: onAccept,
+              child: const Text(
+                "Entendido, ¡vamos! 🚀",
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Link política completa
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+            ),
+            child: Text(
+              "Ver política de privacidad completa",
+              style: TextStyle(fontSize: 12, color: Colors.grey[500], decoration: TextDecoration.underline),
+            ),
+          ),
+          ],
+        ),    // Column
+      ),      // SingleChildScrollView
+    );        // Container
+  }
+
+  Widget _privacyPoint({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String description,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E))),
+              const SizedBox(height: 2),
+              Text(description, style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.4)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

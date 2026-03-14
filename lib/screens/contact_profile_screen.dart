@@ -373,7 +373,7 @@ class _ContactProfileScreenState extends State<ContactProfileScreen> {
                           elevation: 0,
                         ),
                         onPressed: () {
-                          Navigator.pop(context);
+                          // Solo llamar onSendMessage — el caller decide cómo navegar
                           widget.onSendMessage?.call();
                         },
                         icon: const Icon(Icons.chat_bubble_outline, size: 18),

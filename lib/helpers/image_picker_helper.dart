@@ -2,27 +2,54 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html show FileUploadInputElement;
+import '../services/image_compress_service.dart';
+import '../services/storage_upload_service.dart';
 
 class ImagePickerHelper {
   static final ImagePicker _picker = ImagePicker();
 
-  /// Abre la galería y devuelve la imagen en base64 (compatible web + móvil)
+  /// Abre la galería y devuelve la imagen en base64 comprimida (compatible web + móvil)
   static Future<String?> pickFromGallery() async {
     try {
-      final XFile? file = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
-      );
-      if (file == null) return null;
-      final bytes = await file.readAsBytes();
-      final base64 = base64Encode(bytes);
-      final mimeType = file.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-      return 'data:$mimeType;base64,$base64';
+      if (kIsWeb) {
+        // En web: usar FileUploadInputElement + compresión con Canvas
+        final input = html.FileUploadInputElement()
+          ..accept = 'image/*'
+          ..click();
+        await input.onChange.first;
+        final file = input.files?.first;
+        if (file == null) return null;
+        // Comprimir antes de guardar
+        return await ImageCompressService.compressImageFile(file);
+      } else {
+        // En móvil: image_picker ya comprime
+        final XFile? file = await _picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 600,
+          maxHeight: 600,
+          imageQuality: 75,
+        );
+        if (file == null) return null;
+        final bytes = await file.readAsBytes();
+        final base64 = base64Encode(bytes);
+        final mimeType = file.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+        return 'data:$mimeType;base64,$base64';
+      }
     } catch (_) {
       return null;
     }
+  }
+
+  /// Sube imagen a Firebase Storage y devuelve la URL
+  static Future<String?> pickAndUploadProfileImage() async {
+    final base64 = await pickFromGallery();
+    if (base64 == null) return null;
+    // Subir a Storage y obtener URL pública
+    final url = await StorageUploadService.uploadProfileImage(base64);
+    // Si falla Storage, usar base64 como fallback
+    return url ?? base64;
   }
 
   /// Widget de avatar tappable reutilizable
