@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'welcome_screen.dart';
 
 class DemoScreen extends StatefulWidget {
   const DemoScreen({super.key});
@@ -40,7 +41,7 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tooltipController = AnimationController(vsync:this,duration:const Duration(milliseconds:400));
+    _tooltipController = AnimationController(vsync:this,duration:const Duration(milliseconds:700));
     _tooltipFade = CurvedAnimation(parent:_tooltipController,curve:Curves.easeOut);
     _matchController = AnimationController(vsync:this,duration:const Duration(milliseconds:600));
     _matchScale = CurvedAnimation(parent:_matchController,curve:Curves.elasticOut);
@@ -63,14 +64,16 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _triggerMatch() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     setState(() => _showMatch = true);
     _matchController.forward();
-    await Future.delayed(const Duration(milliseconds: 4500));
-    if (!mounted) return;
-    _matchController.reverse();
-    await Future.delayed(const Duration(milliseconds: 400));
+    // No avanza automáticamente — el usuario presiona "Continuar"
+  }
+
+  // Llamado cuando el usuario presiona "Continuar" en el overlay del match
+  Future<void> _dismissMatch() async {
+    await _matchController.reverse();
     if (!mounted) return;
     setState(() => _showMatch = false);
     _advanceStep();
@@ -126,7 +129,10 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
       _tooltipController.forward();
       _checkAutoAdvance();
     } else {
-      Navigator.pop(context);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      );
     }
   }
 
@@ -144,17 +150,23 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: const Color(0xFF0A1628),
       body: Stack(children: [
+        // Fondo degradado
         Container(decoration: const BoxDecoration(gradient: LinearGradient(
           begin: Alignment.topLeft, end: Alignment.bottomRight,
           colors: [Color(0xFF0A1628), Color(0xFF0D2B5E), Color(0xFF1565C0)],
         ))),
+
+        // Contenido principal
         SafeArea(child: Column(children: [
           // TOP BAR
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Row(children: [
               GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                ),
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(color:Colors.white.withValues(alpha:0.15),shape:BoxShape.circle),
@@ -206,14 +218,15 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 20),
 
-          // TARJETA
+          // ÁREA DE TARJETA
           Expanded(child: Stack(alignment: Alignment.center, children: [
-            // Tarjeta de fondo
-            if (nextProfile != null && !_cardDismissed)
+            if (isLastStep)
+              _buildChatPreview(),
+
+            if (!isLastStep && nextProfile != null && !_cardDismissed)
               Transform.scale(scale: 0.93, child: _buildCard(nextProfile, faded: true)),
 
-            // Tarjeta principal draggable
-            if (profile != null && !_cardDismissed)
+            if (!isLastStep && profile != null && !_cardDismissed)
               GestureDetector(
                 onPanStart: needsSwipe ? _onDragStart : null,
                 onPanUpdate: needsSwipe ? _onDragUpdate : null,
@@ -232,7 +245,6 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
                   },
                   child: Stack(children: [
                     _buildCard(profile),
-                    // Overlay LIKE
                     if (swipeRightProgress > 0.1)
                       Positioned.fill(child: Container(
                         decoration: BoxDecoration(
@@ -248,7 +260,6 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
                           )),
                         )),
                       )),
-                    // Overlay NOPE
                     if (swipeLeftProgress > 0.1)
                       Positioned.fill(child: Container(
                         decoration: BoxDecoration(
@@ -268,17 +279,12 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-            // Hint animado
-            if (needsSwipe && !_isDragging && !_cardDismissed)
+            if (!isLastStep && needsSwipe && !_isDragging && !_cardDismissed)
               Positioned(bottom: 20, child: _SwipeHint(right: step.requiredSwipe == SwipeRequirement.right)),
-
-            // Match overlay
-            if (_showMatch)
-              ScaleTransition(scale: _matchScale, child: _buildMatchOverlay()),
           ])),
 
-          // BOTÓN — solo en pasos sin swipe
-          if (!needsSwipe)
+          // BOTÓN inferior — solo cuando NO hay match visible
+          if (!needsSwipe && !_showMatch)
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
               child: SizedBox(
@@ -303,6 +309,23 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
           else
             const SizedBox(height: 28),
         ])),
+
+        // MATCH OVERLAY — último en el Stack, bloquea toda interacción
+        if (_showMatch)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {}, // absorber toques
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.80),
+                child: Center(
+                  child: ScaleTransition(
+                    scale: _matchScale,
+                    child: _buildMatchOverlay(),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ]),
     );
   }
@@ -313,48 +336,103 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
     final w = sh < 700 ? 260.0 : 300.0;
     return Opacity(
       opacity: faded ? 0.65 : 1.0,
-      child: Container(
-        width: w, height: h,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
-            colors:[profile.color,profile.color.withValues(alpha:0.7),Colors.black.withValues(alpha:0.5)]),
-          boxShadow:[BoxShadow(color:profile.color.withValues(alpha:0.4),blurRadius:20,offset:const Offset(0,8))],
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(sh < 700 ? 16 : 24),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: sh < 700 ? 50 : 70, height: sh < 700 ? 50 : 70,
-              decoration: BoxDecoration(color:Colors.white.withValues(alpha:0.2),shape:BoxShape.circle),
-              child: Center(child: Text(profile.emoji, style: TextStyle(fontSize: sh < 700 ? 24 : 32))),
-            ),
-            const Spacer(),
-            Wrap(spacing:6,runSpacing:6,children:profile.skills.map((s) => Container(
-              padding: const EdgeInsets.symmetric(horizontal:10,vertical:4),
-              decoration: BoxDecoration(
-                color:Colors.white.withValues(alpha:0.2),
-                borderRadius:BorderRadius.circular(20),
-                border:Border.all(color:Colors.white.withValues(alpha:0.3)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          width: w, height: h,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+              colors:[profile.color,profile.color.withValues(alpha:0.7),Colors.black.withValues(alpha:0.5)]),
+            boxShadow:[BoxShadow(color:profile.color.withValues(alpha:0.4),blurRadius:20,offset:const Offset(0,8))],
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(sh < 700 ? 16 : 24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: sh < 700 ? 50 : 70, height: sh < 700 ? 50 : 70,
+                decoration: BoxDecoration(color:Colors.white.withValues(alpha:0.2),shape:BoxShape.circle),
+                child: Center(child: Text(profile.emoji, style: TextStyle(fontSize: sh < 700 ? 24 : 32))),
               ),
-              child: Text(s, style: const TextStyle(color:Colors.white,fontSize:11,fontWeight:FontWeight.w600)),
-            )).toList()),
-            const SizedBox(height: 12),
-            Text(profile.name, style: TextStyle(color:Colors.white,fontSize: sh < 700 ? 18 : 22,fontWeight:FontWeight.bold)),
-            const SizedBox(height: 4),
-            Row(children:[
-              const Icon(Icons.location_on,color:Colors.white70,size:13),
-              const SizedBox(width:4),
-              Text("${profile.role} • ${profile.location}",style:TextStyle(color:Colors.white.withValues(alpha:0.8),fontSize:13)),
+              const Spacer(),
+              Wrap(spacing:6,runSpacing:6,children:profile.skills.map((s) => Container(
+                padding: const EdgeInsets.symmetric(horizontal:10,vertical:4),
+                decoration: BoxDecoration(
+                  color:Colors.white.withValues(alpha:0.2),
+                  borderRadius:BorderRadius.circular(20),
+                  border:Border.all(color:Colors.white.withValues(alpha:0.3)),
+                ),
+                child: Text(s, style: const TextStyle(color:Colors.white,fontSize:11,fontWeight:FontWeight.w600)),
+              )).toList()),
+              const SizedBox(height: 12),
+              Text(profile.name, style: TextStyle(color:Colors.white,fontSize: sh < 700 ? 18 : 22,fontWeight:FontWeight.bold)),
+              const SizedBox(height: 4),
+              Row(children:[
+                const Icon(Icons.location_on,color:Colors.white70,size:13),
+                const SizedBox(width:4),
+                Flexible(child: Text("${profile.role} • ${profile.location}",style:TextStyle(color:Colors.white.withValues(alpha:0.8),fontSize:13),overflow:TextOverflow.ellipsis)),
+              ]),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal:12,vertical:6),
+                decoration: BoxDecoration(color:Colors.green.withValues(alpha:0.85),borderRadius:BorderRadius.circular(20)),
+                child: Text(profile.salary, style: const TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.bold)),
+              ),
             ]),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal:12,vertical:6),
-              decoration: BoxDecoration(color:Colors.green.withValues(alpha:0.85),borderRadius:BorderRadius.circular(20)),
-              child: Text(profile.salary, style: const TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.bold)),
-            ),
-          ]),
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildChatPreview() {
+    return Container(
+      width: 300,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(colors: [Color(0xFF1565C0), Color(0xFF42A5F5)]),
+            ),
+            child: const Icon(Icons.person, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text("Tech Solutions Inc.", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+            Text("En línea", style: TextStyle(color: Colors.greenAccent.withValues(alpha: 0.8), fontSize: 11)),
+          ]),
+          const Spacer(),
+          Icon(Icons.videocam_rounded, color: Colors.white.withValues(alpha: 0.6), size: 20),
+        ]),
+        const SizedBox(height: 16),
+        _chatBubble("¡Hola! Vi tu perfil 👋", false),
+        const SizedBox(height: 6),
+        _chatBubble("¡Me interesa la posición! 😊", true),
+        const SizedBox(height: 6),
+        _chatBubble("¿Agendamos una entrevista?", false),
+      ]),
+    );
+  }
+
+  Widget _chatBubble(String text, bool isMe) {
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isMe ? const Color(0xFF1565C0) : Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 12)),
       ),
     );
   }
@@ -364,18 +442,38 @@ class _DemoScreenState extends State<DemoScreen> with TickerProviderStateMixin {
       width: 280,
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors:[Color(0xFF1565C0),Color(0xFF42A5F5)],begin:Alignment.topLeft,end:Alignment.bottomRight),
+        gradient: const LinearGradient(
+          colors:[Color(0xFF1565C0),Color(0xFF42A5F5)],
+          begin:Alignment.topLeft,
+          end:Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(28),
         boxShadow:[BoxShadow(color:Colors.blue.withValues(alpha:0.5),blurRadius:30,spreadRadius:5)],
       ),
-      child: Column(mainAxisSize:MainAxisSize.min,children:[
+      child: Column(mainAxisSize:MainAxisSize.min, children:[
         const Text("🎉", style: TextStyle(fontSize:64)),
         const SizedBox(height:12),
         const Text("¡Es un Match!", style: TextStyle(color:Colors.white,fontSize:26,fontWeight:FontWeight.bold)),
         const SizedBox(height:8),
-        Text("Ahora pueden chatear directamente",
+        Text("Cuando ambos se eligen mutuamente\npueden chatear directamente.",
           textAlign:TextAlign.center,
-          style:TextStyle(color:Colors.white.withValues(alpha:0.85),fontSize:14)),
+          style:TextStyle(color:Colors.white.withValues(alpha:0.85),fontSize:14,height:1.5)),
+        const SizedBox(height: 24),
+        // Botón para continuar — el usuario decide cuándo avanzar
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF1565C0),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              elevation: 0,
+            ),
+            onPressed: _dismissMatch,
+            child: const Text("Continuar →", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          ),
+        ),
       ]),
     );
   }
