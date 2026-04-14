@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "674552295374",
+    "project_id": "rightjob-42041",
+    "storage_bucket": "rightjob-42041.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:674552295374:android:f5831c7e20fca32c00c59f",
+        "android_client_info": {
+          "package_name": "com.example.right_job"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "674552295374-dmd25m7e5l3eej1jikl9hq369pjca8t7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqEhYX6HyUpjhhQMOB4iseEAvYCsdkCXY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "674552295374-dmd25m7e5l3eej1jikl9hq369pjca8t7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
